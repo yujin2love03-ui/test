@@ -1,15 +1,684 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥗</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>식품영양학 암기 마스터 | 플래시카드 퀴즈</title>
-    <!-- Pretendard Font for Korean typography -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  </head>
-  <body class="bg-slate-50 text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900 font-sans min-h-screen">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>식품영양 팡팡! 퀴즈 아일랜드 🏝️ (Gemini 3.8 Flash AI 탑재)</title>
+  <!-- Pretendard 폰트 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Standalone (JSX 컴파일용) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    .btn-jelly-green {
+      background-color: #34d399; color: white; font-weight: 800; border-bottom: 4px solid #059669;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-jelly-green:active { border-bottom-width: 0px; transform: translateY(4px); }
+    .btn-jelly-orange {
+      background-color: #fbbf24; color: white; font-weight: 800; border-bottom: 4px solid #d97706;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-jelly-orange:active { border-bottom-width: 0px; transform: translateY(4px); }
+    .btn-jelly-pink {
+      background-color: #fb7185; color: white; font-weight: 800; border-bottom: 4px solid #e11d48;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-jelly-pink:active { border-bottom-width: 0px; transform: translateY(4px); }
+    .btn-jelly-blue {
+      background-color: #38bdf8; color: white; font-weight: 800; border-bottom: 4px solid #0284c7;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-jelly-blue:active { border-bottom-width: 0px; transform: translateY(4px); }
+    .btn-jelly-purple {
+      background-color: #c084fc; color: white; font-weight: 800; border-bottom: 4px solid #9333ea;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-jelly-purple:active { border-bottom-width: 0px; transform: translateY(4px); }
+    .btn-jelly-white {
+      background-color: #ffffff; color: #334155; font-weight: 800; border-bottom: 4px solid #cbd5e1;
+      transition: all 0.15s; border-radius: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .btn-jelly-white:active { border-bottom-width: 0px; transform: translateY(4px); }
+    @keyframes cuteWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      75% { transform: rotate(5deg); }
+    }
+    .hover-wiggle:hover { animation: cuteWiggle 0.4s ease-in-out infinite; }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-indigo-100/60 via-rose-50/40 to-amber-50/60 min-h-screen text-slate-800 antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    const MODEL_NAME = 'gemini-3.8-flash';
+
+    // 귀여운 사운드
+    const playSound = (type) => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        if (type === 'correct') {
+          [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'triangle';
+            o.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.08;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.18, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.start(t);
+            o.stop(t + 0.22);
+          });
+          return;
+        }
+
+        if (type === 'wrong') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(260, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(130, ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+          return;
+        }
+
+        if (type === 'flip') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(540, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        }
+      } catch (e) {}
+    };
+
+    const initialQuizCards = [
+      {
+        id: 'q1',
+        category: '식품위생학',
+        question: '장염비브리오균은 소금기(2~3%)가 있는 환경에서 잘 자라는 호염성균이며, 수돗물(담수)에 매우 약하다?',
+        answer: '장염비브리오균 (Vibrio parahaemolyticus)',
+        isOXTrue: true,
+        explanation: '딩동댕! 어패류 생식 시 발생하며 2~3% 소금물에서 활발히 증식합니다. 민물(수돗물)로 깨끗이 씻는 것만으로도 대부분 사멸됩니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q2',
+        category: '식품위생학',
+        question: '황색포도상구균이 생성한 장독소(Enterotoxin)는 100℃에서 30분 끓이면 완전히 파괴되어 안전하다?',
+        answer: '황색포도상구균 (Enterotoxin)',
+        isOXTrue: false,
+        explanation: '땡! 균 자체는 열에 약하지만, 균이 이미 만들어낸 엔테로톡신 장독소는 열에 매우 강해 100℃에서 30분 가열해도 파괴되지 않습니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q3',
+        category: '식품위생학',
+        question: '통조림 등 산소가 없는 밀폐 환경에서 치명적인 신경독소를 생성하는 편성 혐기성 아포균은 보툴리누스균이다?',
+        answer: '보툴리누스균 (Clostridium botulinum)',
+        isOXTrue: true,
+        explanation: '정답입니다! 산소를 싫어하는 편성 혐기성균으로 아포를 형성하며, 근육 마비를 일으키는 신경독(치사율 높음)을 생성합니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q4',
+        category: '식품위생학',
+        question: '겨울철 노로바이러스는 세균성 식중독이므로 일반 손소독용 에탄올(알코올)로 완벽히 소멸된다?',
+        answer: '노로바이러스 (Norovirus)',
+        isOXTrue: false,
+        explanation: '땡! 노로바이러스는 바이러스성 감염증이며 입자가 껍질이 없는 구조라 알코올에 강합니다. 염소계 소독제(락스 희석액)를 써야 합니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q5',
+        category: '영양학',
+        question: '탄수화물 대사에서 피루브산이 아세틸-CoA로 넘어가는 탈탄산 반응에 조효소(TPP)로 작용하는 비타민은 비타민 B1이다?',
+        answer: '비타민 B1 (티아민, Thiamin)',
+        isOXTrue: true,
+        explanation: '딩동댕! 탄수화물 다량 섭취 시 티아민 필요량이 증가하며, 결핍 시 젖산이 축적되어 각기병이 생깁니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q6',
+        category: '영양학',
+        question: '비타민 D는 피부에서 자외선을 받아 생성된 뒤, 간과 신장에서 두 번 수산화되어야 활성형(1,25-(OH)₂-D₃)으로 작용한다?',
+        answer: '활성형 비타민 D (Calcitriol)',
+        isOXTrue: true,
+        explanation: '정답! 간에서 25-OH-D로 1차 수산화되고, 신장에서 1,25-(OH)₂-D₃로 2차 활성화되어 소장에서 칼슘 흡수를 촉진합니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q7',
+        category: '식품위생법',
+        question: '식품위생법상 "소비기한"은 제품의 제조일로부터 소비자에게 판매가 허용되는 기한을 의미한다?',
+        answer: '소비기한 vs 유통기한',
+        isOXTrue: false,
+        explanation: '땡! 판매가 허용되는 기한은 옛 "유통기한"이고, "소비기한"은 보관방법 준수 시 섭취해도 안전에 이상이 없는 기한을 뜻합니다.',
+        status: 'unseen'
+      },
+      {
+        id: 'q8',
+        category: '식품위생법',
+        question: 'HACCP에서 위해요소를 중점적으로 관리·제어하는 필수 단계를 CCP(중요관리점)라고 부른다?',
+        answer: 'CCP (Critical Control Point)',
+        isOXTrue: true,
+        explanation: '정답입니다! 가열, 냉각, 금속검출 등 위해요소를 완전히 없애거나 허용수준 이하로 낮출 수 있는 가장 중요한 단계입니다.',
+        status: 'unseen'
+      }
+    ];
+
+    function App() {
+      const [cards, setCards] = useState(() => {
+        const saved = localStorage.getItem('cute_quiz_cards_v3');
+        return saved ? JSON.parse(saved) : initialQuizCards;
+      });
+
+      const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
+      const [exp, setExp] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [mode, setMode] = useState('flashcard');
+      const [filter, setFilter] = useState('all');
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [isFlipped, setIsFlipped] = useState(false);
+      const [toast, setToast] = useState(null);
+
+      // AI 모달 상태
+      const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+      const [aiTopic, setAiTopic] = useState('');
+      const [aiLoading, setAiLoading] = useState(false);
+      const [aiExplainText, setAiExplainText] = useState('');
+
+      useEffect(() => {
+        localStorage.setItem('cute_quiz_cards_v3', JSON.stringify(cards));
+      }, [cards]);
+
+      const showToast = (msg, icon = '✨') => {
+        setToast({ msg, icon });
+        setTimeout(() => setToast(null), 2500);
+      };
+
+      const level = Math.floor(exp / 100) + 1;
+
+      const filteredCards = useMemo(() => {
+        if (filter === 'hygiene') return cards.filter(c => c.category === '식품위생학');
+        if (filter === 'nutrition') return cards.filter(c => c.category === '영양학');
+        if (filter === 'law') return cards.filter(c => c.category === '식품위생법');
+        if (filter === 'wrong') return cards.filter(c => c.status === 'wrong');
+        return cards;
+      }, [cards, filter]);
+
+      useEffect(() => {
+        if (currentIndex >= filteredCards.length) {
+          setCurrentIndex(Math.max(0, filteredCards.length - 1));
+        }
+        setIsFlipped(false);
+      }, [filteredCards.length, filter]);
+
+      const counts = {
+        all: cards.length,
+        hygiene: cards.filter(c => c.category === '식품위생학').length,
+        nutrition: cards.filter(c => c.category === '영양학').length,
+        law: cards.filter(c => c.category === '식품위생법').length,
+        wrong: cards.filter(c => c.status === 'wrong').length,
+      };
+
+      const handleFlip = () => {
+        playSound('flip');
+        setIsFlipped(!isFlipped);
+      };
+
+      const handleMemorized = (id) => {
+        playSound('correct');
+        setCards(cards.map(c => c.id === id ? { ...c, status: 'memorized' } : c));
+        setExp(exp + 15);
+        showToast('완벽 암기 완료! +15 EXP 🌱', '💚');
+      };
+
+      const handleWrong = (id) => {
+        playSound('wrong');
+        setCards(cards.map(c => c.id === id ? { ...c, status: 'wrong' } : c));
+        setStreak(0);
+        showToast('[오답 집중 복습]에 등록되었어요!', '🚨');
+      };
+
+      const handleShuffle = () => {
+        const s = [...cards].sort(() => Math.random() - 0.5);
+        setCards(s);
+        setCurrentIndex(0);
+        setIsFlipped(false);
+        showToast('카드가 와르르 섞였어요! 🎲');
+      };
+
+      // Gemini AI로 문제 자동 생성
+      const handleGenerateAI = async () => {
+        if (!apiKey) {
+          alert('먼저 상단의 Gemini API Key를 입력해주세요!');
+          return;
+        }
+        if (!aiTopic.trim()) {
+          alert('어떤 주제로 만들지 단어를 입력해주세요!');
+          return;
+        }
+
+        setAiLoading(true);
+        try {
+          const prompt = `식품영양학(식품위생학, 영양학, 식품위생법) 시험 대비 퀴즈 2문제를 "${aiTopic}" 주제로 만들어줘.
+반드시 아래 JSON 배열 포맷으로만 응답해줘:
+[
+  {
+    "category": "식품위생학",
+    "question": "문제 문장",
+    "answer": "핵심 정답",
+    "isOXTrue": true,
+    "explanation": "암기 비법 해설"
+  }
+]`;
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } })
+          });
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const newItems = parsed.map((item, idx) => ({ ...item, id: `ai-${Date.now()}-${idx}`, status: 'unseen' }));
+
+          setCards([...newItems, ...cards]);
+          setCurrentIndex(0);
+          setExp(exp + 40);
+          showToast(`🤖 Gemini 3.8 Flash가 ${newItems.length}문제를 만들었어요!`, '🎉');
+          setAiTopic('');
+          setIsAIModalOpen(false);
+        } catch (err) {
+          alert('AI 문제 생성 오류: ' + err.message);
+        } finally {
+          setAiLoading(false);
+        }
+      };
+
+      // Gemini AI 심화 해설
+      const handleAskAIExplain = async (card) => {
+        if (!apiKey) {
+          setIsAIModalOpen(true);
+          return;
+        }
+        setAiExplainText('AI 교수님이 친절한 족집게 노트를 작성 중입니다... 📝');
+        try {
+          const prompt = `문제: ${card.question}\n정답: ${card.answer}\n이 문제에 대해 학생들이 단번에 외울 수 있도록 3문장 이내로 핵심 원리와 재미있는 암기 비법 꿀팁을 설명해줘.`;
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          const data = await res.json();
+          setAiExplainText(data.candidates?.[0]?.content?.parts?.[0]?.text || '해설을 불러오지 못했습니다.');
+        } catch (e) {
+          setAiExplainText('해설 생성 중 오류가 발생했습니다: ' + e.message);
+        }
+      };
+
+      const currentCard = filteredCards[currentIndex];
+
+      return (
+        <div className="max-w-2xl mx-auto p-4 md:p-6 min-h-screen flex flex-col justify-between">
+          {toast && (
+            <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white text-xs md:text-sm font-black px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 border-2 border-indigo-300">
+              <span>{toast.icon}</span>
+              <span>{toast.msg}</span>
+            </div>
+          )}
+
+          <div>
+            {/* 상단 대시보드 */}
+            <div className="bg-white/95 rounded-3xl p-5 md:p-6 shadow-xl shadow-indigo-100 border-2 border-indigo-100 mb-6">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-300 to-rose-300 flex items-center justify-center text-2xl shadow-md hover-wiggle cursor-pointer">
+                    🥗
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl font-black text-slate-800">식품영양 팡팡!</h1>
+                      <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">
+                        Lv.{level} {level >= 3 ? '식품 마스터 👑' : '새싹 영양사 🌱'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Gemini 3.8 Flash AI 탑재 스마트 퀴즈</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsAIModalOpen(true)} className="btn-jelly-purple px-3 py-1.5 text-xs flex items-center gap-1">
+                    <span>🤖 AI 연구소</span>
+                    {!apiKey && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
+                  </button>
+                  <button onClick={handleShuffle} className="btn-jelly-white px-3 py-1.5 text-xs">
+                    🔀 섞기
+                  </button>
+                </div>
+              </div>
+
+              {/* EXP 게이지 */}
+              <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 mb-4">
+                <div className="flex justify-between text-xs font-black text-slate-600 mb-1">
+                  <span>EXP 게이지</span>
+                  <span className="text-indigo-600">{exp % 100} / 100 EXP</span>
+                </div>
+                <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-amber-400 via-rose-400 to-indigo-500 rounded-full" style={{ width: `${exp % 100}%` }} />
+                </div>
+              </div>
+
+              {/* 모드 전환 탭 */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
+                <button
+                  onClick={() => setMode('flashcard')}
+                  className={`py-2 text-xs md:text-sm font-black rounded-xl transition-all ${mode === 'flashcard' ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500'}`}
+                >
+                  🎴 카드 뒤집기
+                </button>
+                <button
+                  onClick={() => setMode('oxquiz')}
+                  className={`py-2 text-xs md:text-sm font-black rounded-xl transition-all ${mode === 'oxquiz' ? 'bg-rose-500 text-white shadow-md' : 'text-slate-500'}`}
+                >
+                  ⭕❌ O/X 스피드 퀴즈
+                </button>
+              </div>
+            </div>
+
+            {/* 필터 탭 */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+              {[
+                { id: 'all', label: '전체', emoji: '🌈', count: counts.all },
+                { id: 'hygiene', label: '식품위생학', emoji: '🦠', count: counts.hygiene },
+                { id: 'nutrition', label: '영양학', emoji: '🥗', count: counts.nutrition },
+                { id: 'law', label: '식품위생법', emoji: '⚖️', count: counts.law },
+                { id: 'wrong', label: '오답 복습', emoji: '🚨', count: counts.wrong, danger: true },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setFilter(t.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-b-2 ${
+                    filter === t.id
+                      ? t.danger
+                        ? 'bg-rose-500 text-white border-rose-700 shadow-md'
+                        : 'bg-indigo-600 text-white border-indigo-800 shadow-md'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {t.emoji} {t.label} ({t.count})
+                </button>
+              ))}
+            </div>
+
+            {/* 본문 콘텐츠 */}
+            {filteredCards.length === 0 ? (
+              <div className="bg-white rounded-3xl border-4 border-dashed border-indigo-200 p-8 text-center my-6">
+                <div className="text-5xl mb-2">🎉</div>
+                <h3 className="text-lg font-black text-slate-800">문제가 없어요!</h3>
+                <p className="text-xs text-slate-500 font-bold mt-1">오답을 모두 외우셨거나 문제가 비어있습니다. AI로 새 문제를 만들어보세요!</p>
+              </div>
+            ) : mode === 'flashcard' ? (
+              /* ================= 🎴 플래시카드 모드 ================= */
+              <div>
+                <div className="flex justify-between items-center mb-2 px-1 text-xs font-black text-slate-500">
+                  <span>카드 {currentIndex + 1} / {filteredCards.length}</span>
+                  <span className="text-[11px] bg-slate-200 px-2 py-0.5 rounded-full">{currentCard.category}</span>
+                </div>
+
+                <div
+                  className="w-full h-80 perspective-1000 cursor-pointer select-none"
+                  onClick={handleFlip}
+                >
+                  <div className={`relative w-full h-full duration-500 transform-style-3d transition-transform ${isFlipped ? 'rotate-y-180' : ''}`}>
+                    {/* 앞면 */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl p-6 shadow-xl shadow-indigo-100 border-4 border-indigo-100 flex flex-col justify-between hover:border-indigo-300">
+                      <span className="text-xs font-black text-slate-400">터치해서 정답 확인 ✨</span>
+                      <div className="my-auto text-center px-2">
+                        <div className="text-4xl mb-3">🧐</div>
+                        <h2 className="text-lg md:text-xl font-black text-slate-800 leading-relaxed break-keep">
+                          {currentCard.question}
+                        </h2>
+                      </div>
+                      <div className="text-center text-xs text-indigo-500 font-bold">카드를 클릭하면 슝 뒤집혀요!</div>
+                    </div>
+
+                    {/* 뒷면 */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-b from-amber-50 to-white rounded-3xl p-6 shadow-xl shadow-amber-100 border-4 border-amber-200 flex flex-col justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">정답 & 암기 비법 💡</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAskAIExplain(currentCard);
+                          }}
+                          className="text-xs font-black text-purple-700 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-full border border-purple-300"
+                        >
+                          🤖 AI 족집게 과외
+                        </button>
+                      </div>
+
+                      <div className="my-auto space-y-2 overflow-y-auto max-h-[170px] pr-1">
+                        <div className="text-center">
+                          <p className="text-xs text-slate-400 font-bold">정답 키워드</p>
+                          <h3 className="text-xl font-black text-emerald-600 break-keep mt-0.5">{currentCard.answer}</h3>
+                        </div>
+                        <div className="bg-amber-100/70 rounded-2xl p-3 border border-amber-200 text-left">
+                          <p className="text-xs md:text-sm text-amber-900 font-bold leading-relaxed break-keep">{currentCard.explanation}</p>
+                        </div>
+
+                        {aiExplainText && (
+                          <div className="bg-purple-50 p-3 rounded-2xl border border-purple-200 text-left text-xs text-purple-950 font-medium">
+                            <span className="font-black text-purple-700 block mb-1">🎓 AI 교수님 꿀팁:</span>
+                            {aiExplainText}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-slate-400 font-bold">다시 클릭하면 문제로 이동</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 버튼들 */}
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <button onClick={() => handleWrong(currentCard.id)} className="btn-jelly-orange py-3.5 text-xs md:text-sm">
+                    헷갈려요 (오답 추가)
+                  </button>
+                  <button onClick={() => handleMemorized(currentCard.id)} className="btn-jelly-green py-3.5 text-xs md:text-sm">
+                    완벽 암기! (+15 EXP)
+                  </button>
+                </div>
+
+                <div className="flex justify-between items-center mt-3">
+                  <button
+                    onClick={() => {
+                      setIsFlipped(false);
+                      setAiExplainText('');
+                      setCurrentIndex(currentIndex > 0 ? currentIndex - 1 : filteredCards.length - 1);
+                    }}
+                    className="btn-jelly-white px-4 py-2 text-xs"
+                  >
+                    이전 문제
+                  </button>
+                  <span className="text-[11px] text-slate-400 font-medium">스페이스바: 뒤집기</span>
+                  <button
+                    onClick={() => {
+                      setIsFlipped(false);
+                      setAiExplainText('');
+                      setCurrentIndex(currentIndex < filteredCards.length - 1 ? currentIndex + 1 : 0);
+                    }}
+                    className="btn-jelly-white px-4 py-2 text-xs"
+                  >
+                    다음 문제
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ================= ⭕❌ O/X 스피드 퀴즈 모드 ================= */
+              <OXQuizComponent card={currentCard} onCorrect={() => {
+                playSound('correct');
+                setExp(exp + 20);
+                setStreak(streak + 1);
+                showToast('딩동댕 정답! +20 EXP 콤보 팡팡! 🎶', '⭕');
+              }} onWrong={() => {
+                handleWrong(currentCard.id);
+              }} onNext={() => {
+                if (currentIndex < filteredCards.length - 1) {
+                  setCurrentIndex(currentIndex + 1);
+                } else {
+                  showToast('마지막 문제까지 완주 성공! 🏆', '🎉');
+                  setCurrentIndex(0);
+                }
+              }} />
+            )}
+          </div>
+
+          {/* AI 연구소 모달 */}
+          {isAIModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+              <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border-4 border-indigo-200 space-y-4">
+                <div className="flex justify-between items-center border-b pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🤖</span>
+                    <div>
+                      <h3 className="font-black text-slate-800">Gemini 3.8 Flash 연구소</h3>
+                      <p className="text-[11px] text-indigo-600 font-bold">API Key 관리 & AI 퀴즈 생성기</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsAIModalOpen(false)} className="text-slate-400 font-black text-lg">✕</button>
+                </div>
+
+                {/* API Key 입력 */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">🔑 내 Gemini API Key</label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      localStorage.setItem('gemini_api_key', e.target.value);
+                    }}
+                    placeholder="AIzaSy..."
+                    className="w-full px-3 py-2 text-xs border-2 border-slate-200 rounded-xl font-mono focus:border-indigo-400 focus:outline-none"
+                  />
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-[11px] text-indigo-600 font-bold hover:underline block mt-1">
+                    👉 Google AI Studio에서 무료 Key 발급받기
+                  </a>
+                </div>
+
+                {/* AI 문제 생성 */}
+                <div className="pt-2 border-t">
+                  <label className="block text-xs font-black text-slate-700 mb-1">✨ AI로 새 퀴즈 만들기</label>
+                  <input
+                    type="text"
+                    value={aiTopic}
+                    onChange={(e) => setAiTopic(e.target.value)}
+                    placeholder="예: 지용성 비타민, 식품첨가물, HACCP 원칙..."
+                    className="w-full px-3 py-2 text-xs border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none mb-2"
+                  />
+                  <button
+                    onClick={handleGenerateAI}
+                    disabled={aiLoading}
+                    className="btn-jelly-green w-full py-2.5 text-xs font-black disabled:opacity-50"
+                  >
+                    {aiLoading ? 'Gemini 3.8 Flash가 문제를 만드는 중... 🧠' : 'AI로 퀴즈 2문제 뚝딱 만들기! 🚀'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <footer className="text-center text-xs text-slate-400 font-bold mt-8">
+            🎮 식품영양 암기 팡팡! (Gemini 3.8 Flash AI 지원)
+          </footer>
+        </div>
+      );
+    }
+
+    function OXQuizComponent({ card, onCorrect, onWrong, onNext }) {
+      const [answered, setAnswered] = useState(false);
+      const [userChoice, setUserChoice] = useState(null);
+
+      useEffect(() => {
+        setAnswered(false);
+        setUserChoice(null);
+      }, [card.id]);
+
+      const handlePick = (choice) => {
+        if (answered) return;
+        setUserChoice(choice);
+        setAnswered(true);
+        if (choice === card.isOXTrue) {
+          onCorrect();
+        } else {
+          onWrong();
+        }
+      };
+
+      return (
+        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-rose-100 border-4 border-rose-100 min-h-[300px] flex flex-col justify-between">
+          <div>
+            <span className="text-xs font-black px-3 py-1 rounded-full bg-rose-100 text-rose-700">
+              {card.category}
+            </span>
+            <h3 className="text-base md:text-lg font-black text-slate-800 leading-relaxed mt-4 break-keep">
+              {card.question}
+            </h3>
+          </div>
+
+          {answered ? (
+            <div className={`mt-4 p-4 rounded-2xl border-2 text-left ${userChoice === card.isOXTrue ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'}`}>
+              <div className="font-black text-sm mb-1">
+                {userChoice === card.isOXTrue ? '⭕ 딩동댕! 정답이에요! (+20 EXP)' : '❌ 땡! 오답 노트에 쏙 들어갔어요'}
+              </div>
+              <p className="text-xs font-bold leading-relaxed break-keep">{card.explanation}</p>
+              <button onClick={onNext} className="btn-jelly-blue w-full py-2.5 text-xs font-black mt-3">
+                다음 문제로 슝! ➔
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <button onClick={() => handlePick(true)} className="btn-jelly-green py-5 text-2xl font-black">
+                ⭕ O (맞아요)
+              </button>
+              <button onClick={() => handlePick(false)} className="btn-jelly-pink py-5 text-2xl font-black">
+                ❌ X (틀려요)
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
 </html>
