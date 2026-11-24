@@ -65,6 +65,39 @@
 
     const MODEL_NAME = 'gemini-3.8-flash';
 
+    // Gemini API 호출 헬퍼 (gemini-3.8-flash 우선 시도 후 2.5-flash / 2.0-flash / 1.5-flash 자동 호환)
+    async function callGemini(apiKey, prompt, asJson = false) {
+      const models = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastErr = null;
+
+      const bodyObj = {
+        contents: [{ parts: [{ text: prompt }] }],
+      };
+      if (asJson) {
+        bodyObj.generationConfig = { responseMimeType: 'application/json' };
+      }
+
+      for (const m of models) {
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            lastErr = new Error(data.error?.message || `${m} 응답 오류`);
+            continue; // 다음 모델 시도
+          }
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('API Key가 올바르지 않거나 Gemini 서버와 통신할 수 없습니다.');
+    }
+
     // 귀여운 사운드
     const playSound = (type) => {
       try {
@@ -300,25 +333,25 @@
     "explanation": "암기 비법 해설"
   }
 ]`;
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } })
-          });
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          const text = await callGemini(apiKey, prompt, true);
+          // JSON 배열 추출
+          const jsonMatch = text.match(/\[[\s\S]*\]/);
+          const cleaned = jsonMatch ? jsonMatch[0] : text.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleaned);
-          const newItems = parsed.map((item, idx) => ({ ...item, id: `ai-${Date.now()}-${idx}`, status: 'unseen' }));
+          const newItems = (Array.isArray(parsed) ? parsed : [parsed]).map((item, idx) => ({
+            ...item,
+            id: `ai-${Date.now()}-${idx}`,
+            status: 'unseen'
+          }));
 
           setCards([...newItems, ...cards]);
           setCurrentIndex(0);
           setExp(exp + 40);
-          showToast(`🤖 Gemini 3.8 Flash가 ${newItems.length}문제를 만들었어요!`, '🎉');
+          showToast(`🤖 Gemini AI가 ${newItems.length}문제를 뚝딱 만들었어요!`, '🎉');
           setAiTopic('');
           setIsAIModalOpen(false);
         } catch (err) {
-          alert('AI 문제 생성 오류: ' + err.message);
+          alert('AI 문제 생성 오류: ' + (err.message || '다시 시도해주세요.'));
         } finally {
           setAiLoading(false);
         }
@@ -333,13 +366,12 @@
         setAiExplainText('AI 교수님이 친절한 족집게 노트를 작성 중입니다... 📝');
         try {
           const prompt = `문제: ${card.question}\n정답: ${card.answer}\n이 문제에 대해 학생들이 단번에 외울 수 있도록 3문장 이내로 핵심 원리와 재미있는 암기 비법 꿀팁을 설명해줘.`;
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          const data = await res.json();
-          setAiExplainText(data.candidates?.[0]?.content?.parts?.[0]?.text || '해설을 불러오지 못했습니다.');
+          const text = await callGemini(apiKey, prompt, false);
+          setAiExplainText(text || '해설을 불러오지 못했습니다.');
+        } catch (e) {
+          setAiExplainText('해설 생성 중 오류: ' + (e.message || 'API Key를 확인해주세요.'));
+        }
+      };
         } catch (e) {
           setAiExplainText('해설 생성 중 오류가 발생했습니다: ' + e.message);
         }
