@@ -63,13 +63,11 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
 
-    const MODEL_NAME = 'gemini-3.8-flash';
+    let cachedModelName = null;
+    let cachedApiVersion = 'v1beta';
 
-    // Gemini API 호출 헬퍼 (gemini-3.8-flash 우선 시도 후 2.5-flash / 2.0-flash / 1.5-flash 자동 호환)
+    // 사용자의 API Key에서 실제로 쓸 수 있는 Gemini 모델을 실시간 감지하여 호출
     async function callGemini(apiKey, prompt, asJson = false) {
-      const models = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-      let lastErr = null;
-
       const bodyObj = {
         contents: [{ parts: [{ text: prompt }] }],
       };
@@ -77,25 +75,85 @@
         bodyObj.generationConfig = { responseMimeType: 'application/json' };
       }
 
-      for (const m of models) {
+      // 1. 이미 찾아낸 정상 모델이 있으면 그것부터 시도
+      if (cachedModelName) {
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+          const res = await fetch(`https://generativelanguage.googleapis.com/${cachedApiVersion}/models/${cachedModelName}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyObj)
           });
           const data = await res.json();
-          if (!res.ok) {
-            lastErr = new Error(data.error?.message || `${m} 응답 오류`);
-            continue; // 다음 모델 시도
+          if (res.ok) {
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
           }
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return text;
+        } catch (e) {}
+      }
+
+      // 2. 구글 공식 ListModels API를 통해 내 키가 쓸 수 있는 모델 목록 실시간 조회
+      let availableModels = [];
+      const versions = ['v1beta', 'v1'];
+      for (const ver of versions) {
+        try {
+          const listRes = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${apiKey}`);
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            const supported = (listData.models || [])
+              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+              .map(m => ({ name: m.name.replace(/^models\//, ''), version: ver }));
+            if (supported.length > 0) {
+              availableModels.push(...supported);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // flash 모델을 최우선으로 정렬, 그 다음 pro 등
+      availableModels.sort((a, b) => {
+        const aFlash = a.name.includes('flash') ? 1 : 0;
+        const bFlash = b.name.includes('flash') ? 1 : 0;
+        return bFlash - aFlash;
+      });
+
+      // 만약 ListModels가 안 될 경우를 위한 기본 후보군
+      if (availableModels.length === 0) {
+        availableModels = [
+          { name: 'gemini-1.5-flash-latest', version: 'v1beta' },
+          { name: 'gemini-1.5-flash', version: 'v1beta' },
+          { name: 'gemini-1.5-flash-001', version: 'v1beta' },
+          { name: 'gemini-2.0-flash', version: 'v1beta' },
+          { name: 'gemini-pro', version: 'v1' },
+          { name: 'gemini-1.5-pro', version: 'v1beta' },
+        ];
+      }
+
+      // 3. 사용 가능한 모델들로 순차 호출
+      let lastErr = null;
+      for (const item of availableModels) {
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/${item.version}/models/${item.name}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              cachedModelName = item.name;
+              cachedApiVersion = item.version;
+              return text;
+            }
+          } else {
+            lastErr = new Error(data.error?.message || `${item.name} 호출 오류`);
+          }
         } catch (e) {
           lastErr = e;
         }
       }
-      throw lastErr || new Error('API Key가 올바르지 않거나 Gemini 서버와 통신할 수 없습니다.');
+
+      throw lastErr || new Error('사용 가능한 Gemini 모델을 찾을 수 없습니다. API Key를 확인해주세요.');
     }
 
     // 귀여운 사운드
